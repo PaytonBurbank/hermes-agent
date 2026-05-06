@@ -134,6 +134,27 @@ class TestDoctorCommandInstallation:
         assert "wrong target" in out
 
     @pytest.mark.skipif(sys.platform == "win32", reason="Symlink check is Unix-only")
+    def test_wrapper_symlink_targeting_expected_entrypoint_shows_ok(self, monkeypatch, tmp_path):
+        home, project, hermes_bin = _setup_doctor_env(monkeypatch, tmp_path)
+
+        cmd_link_dir = tmp_path / ".local" / "bin"
+        cmd_link_dir.mkdir(parents=True)
+        cmd_link = cmd_link_dir / "hermes"
+
+        wrapper = tmp_path / "hermes-wrapper"
+        wrapper.write_text(
+            f'#!/usr/bin/env bash\nREAL_HERMES="{hermes_bin.resolve()}"\nexec "$REAL_HERMES" "$@"\n'
+        )
+        wrapper.chmod(0o755)
+        cmd_link.symlink_to(wrapper)
+
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+        out = _run_doctor(fix=False)
+        assert "Command Installation" in out
+        assert "wrapper targeting correct entry point" in out
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="Symlink check is Unix-only")
     def test_fix_repairs_wrong_symlink(self, monkeypatch, tmp_path):
         home, project, hermes_bin = _setup_doctor_env(monkeypatch, tmp_path)
 

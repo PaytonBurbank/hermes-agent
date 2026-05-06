@@ -5,6 +5,7 @@ Diagnoses issues with Hermes Agent setup.
 """
 
 import os
+import re
 import sys
 import subprocess
 import shutil
@@ -84,6 +85,34 @@ def _safe_which(cmd: str) -> str | None:
         return shutil.which(cmd)
     except Exception:
         return None
+
+
+def _wrapper_targets_expected_entrypoint(wrapper_path: Path, expected_entrypoint: Path) -> bool:
+    """Return True when a wrapper script ultimately targets the expected Hermes entrypoint."""
+    try:
+        if not wrapper_path.is_file():
+            return False
+        content = wrapper_path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return False
+
+    expected = str(expected_entrypoint.resolve())
+    return expected in content
+
+
+def _extract_profile_name_from_wrapper(content: str) -> str | None:
+    """Best-effort extraction of the target profile from a launcher wrapper."""
+    literal_match = re.search(r"hermes -p ([^\s\"']+)", content)
+    if literal_match:
+        profile = literal_match.group(1)
+        if not profile.startswith("$"):
+            return profile
+
+    profile_assignment = re.search(r'^\s*profile=[\"\']([^\"\']+)[\"\']', content, re.MULTILINE)
+    if profile_assignment and "hermes -p" in content:
+        return profile_assignment.group(1)
+
+    return None
 
 
 def _termux_browser_setup_steps(node_installed: bool) -> list[str]:
@@ -761,6 +790,8 @@ def run_doctor(args):
                 _expected = _venv_bin.resolve()
                 if _target == _expected:
                     check_ok(f"{_cmd_link_display}/hermes → correct target")
+                elif _wrapper_targets_expected_entrypoint(_target, _expected):
+                    check_ok(f"{_cmd_link_display}/hermes → wrapper targeting correct entry point")
                 else:
                     check_warn(
                         f"{_cmd_link_display}/hermes points to wrong target",
@@ -1348,7 +1379,6 @@ def run_doctor(args):
     # =========================================================================
     try:
         from hermes_cli.profiles import list_profiles, _get_wrapper_dir, profile_exists
-        import re as _re
 
         named_profiles = [p for p in list_profiles() if not p.is_default]
         if named_profiles:
@@ -1378,11 +1408,10 @@ def run_doctor(args):
                     if not wrapper.is_file():
                         continue
                     try:
-                        content = wrapper.read_text()
-                        if "hermes -p" in content:
-                            _m = _re.search(r"hermes -p (\S+)", content)
-                            if _m and not profile_exists(_m.group(1)):
-                                check_warn(f"Orphan alias: {wrapper.name} → profile '{_m.group(1)}' no longer exists")
+                        content = wrapper.read_text(encoding="utf-8", errors="ignore")
+                        profile_name = _extract_profile_name_from_wrapper(content)
+                        if profile_name and not profile_exists(profile_name):
+                            check_warn(f"Orphan alias: {wrapper.name} → profile '{profile_name}' no longer exists")
                     except Exception:
                         pass
     except ImportError:

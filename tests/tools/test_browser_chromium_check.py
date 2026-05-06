@@ -33,6 +33,12 @@ class TestChromiumSearchRoots:
         roots = bt._chromium_search_roots()
         assert "0" not in roots
 
+    def test_always_includes_agent_browser_install_dir(self, monkeypatch):
+        monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
+        roots = bt._chromium_search_roots()
+        home = os.path.expanduser("~")
+        assert any(r == os.path.join(home, ".agent-browser", "browsers") for r in roots)
+
     def test_always_includes_default_ms_playwright_cache(self, monkeypatch):
         monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
         roots = bt._chromium_search_roots()
@@ -49,6 +55,13 @@ class TestChromiumInstalled:
     def test_true_when_headless_shell_present(self, monkeypatch, tmp_path):
         monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", str(tmp_path))
         (tmp_path / "chromium_headless_shell-1208").mkdir()
+        assert bt._chromium_installed() is True
+
+    def test_true_when_agent_browser_install_dir_contains_chrome(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("PLAYWRIGHT_BROWSERS_PATH", raising=False)
+        fake_home = tmp_path / "fakehome"
+        monkeypatch.setattr("os.path.expanduser", lambda p: str(fake_home))
+        (fake_home / ".agent-browser" / "browsers" / "chrome-148.0.7778.97").mkdir(parents=True)
         assert bt._chromium_installed() is True
 
     def test_false_when_dir_empty(self, monkeypatch, tmp_path):

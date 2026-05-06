@@ -51,6 +51,21 @@ class TestProviderEnvDetection:
         assert not _has_provider_env_config(content)
 
 
+class TestDoctorWrapperParsing:
+    def test_extracts_literal_profile_from_wrapper(self):
+        content = '#!/bin/sh\nexec hermes -p jarvis "$@"\n'
+        assert doctor._extract_profile_name_from_wrapper(content) == "jarvis"
+
+    def test_extracts_variable_assigned_profile_from_wrapper(self):
+        content = (
+            '#!/usr/bin/env bash\n'
+            'profile="jarvis2"\n'
+            'session="hermes-${profile}"\n'
+            'exec hermes -p "$profile" "$@"\n'
+        )
+        assert doctor._extract_profile_name_from_wrapper(content) == "jarvis2"
+
+
 class TestDoctorToolAvailabilityOverrides:
     def test_marks_honcho_available_when_configured(self, monkeypatch):
         monkeypatch.setattr(doctor, "_honcho_is_configured_for_doctor", lambda: True)
