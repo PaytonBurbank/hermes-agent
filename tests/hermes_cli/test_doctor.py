@@ -91,6 +91,19 @@ class TestDoctorToolAvailabilityOverrides:
         assert unavailable == [honcho_entry]
 
 
+class TestDoctorUnavailableToolDetails:
+    def test_uses_missing_env_vars_when_declared(self):
+        detail = doctor._tool_unavailable_detail({"name": "homeassistant", "env_vars": ["HASS_TOKEN"]})
+        assert detail == "(missing HASS_TOKEN)"
+
+    def test_reports_runtime_hints_for_context_gated_toolsets(self):
+        assert doctor._tool_unavailable_detail({"name": "browser-cdp", "env_vars": []}) == "(requires browser.cdp_url or '/browser connect')"
+        assert doctor._tool_unavailable_detail({"name": "kanban", "env_vars": []}) == "(available only inside kanban worker sessions)"
+        assert doctor._tool_unavailable_detail({"name": "messaging", "env_vars": []}) == "(requires a running gateway or messaging session)"
+        assert doctor._tool_unavailable_detail({"name": "hermes-yuanbao", "env_vars": []}) == "(available only in Yuanbao sessions or with an active Yuanbao adapter)"
+        assert doctor._tool_unavailable_detail({"name": "spotify", "env_vars": []}) == "(requires Spotify auth)"
+
+
 class TestHonchoDoctorConfigDetection:
     def test_reports_configured_when_enabled_with_api_key(self, monkeypatch):
         fake_config = SimpleNamespace(enabled=True, api_key="***")

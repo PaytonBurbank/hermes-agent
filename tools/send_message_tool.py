@@ -1636,14 +1636,17 @@ async def _send_feishu(pconfig, chat_id, message, media_files=None, thread_id=No
 
 
 def _check_send_message():
-    """Gate send_message on gateway running (always available on messaging platforms)."""
+    """Gate send_message on messaging sessions or an active gateway runtime."""
     from gateway.session_context import get_session_env
+
     platform = get_session_env("HERMES_SESSION_PLATFORM", "")
     if platform and platform != "local":
         return True
+
     try:
-        from gateway.status import is_gateway_running
-        return is_gateway_running()
+        from hermes_cli.gateway import get_gateway_runtime_snapshot
+
+        return get_gateway_runtime_snapshot().running
     except Exception:
         return False
 

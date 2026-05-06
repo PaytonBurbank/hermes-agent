@@ -499,6 +499,12 @@ class TestRegistration:
         for tool in ("ha_list_entities", "ha_get_state", "ha_call_service"):
             assert toolset_map[tool] == "homeassistant"
 
+    def test_tools_declare_hass_token_requirement(self):
+        from tools.registry import registry
+
+        for tool in ("ha_list_entities", "ha_get_state", "ha_list_services", "ha_call_service"):
+            assert registry._tools[tool].requires_env == ["HASS_TOKEN"]
+
     def test_check_fn_gates_availability(self, monkeypatch):
         """Registry should exclude HA tools when HASS_TOKEN is not set."""
         from tools.registry import registry

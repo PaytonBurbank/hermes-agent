@@ -22,6 +22,7 @@ def _reset_signal_scheduler():
 
 from gateway.config import Platform
 from tools.send_message_tool import (
+    _check_send_message,
     _derive_forum_thread_name,
     _parse_target_ref,
     _send_discord,
@@ -75,6 +76,13 @@ def _ensure_slack_mock(monkeypatch):
         ("slack_sdk.web.async_client", slack_sdk.web.async_client),
     ]:
         monkeypatch.setitem(sys.modules, name, mod)
+
+
+class TestCheckSendMessageAvailability:
+    def test_available_when_gateway_runtime_snapshot_reports_running(self):
+        with patch("gateway.session_context.get_session_env", return_value="local"), \
+             patch("hermes_cli.gateway.get_gateway_runtime_snapshot", return_value=SimpleNamespace(running=True)):
+            assert _check_send_message() is True
 
 
 class TestSendMessageTool:

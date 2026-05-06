@@ -115,6 +115,28 @@ def _extract_profile_name_from_wrapper(content: str) -> str | None:
     return None
 
 
+def _tool_unavailable_detail(item: dict) -> str:
+    """Return a user-facing reason for an unavailable toolset."""
+    env_vars = item.get("missing_vars") or item.get("env_vars") or []
+    if env_vars:
+        vars_str = ", ".join(env_vars)
+        return f"(missing {vars_str})"
+
+    toolset = item.get("name", "")
+    if toolset == "browser-cdp":
+        return "(requires browser.cdp_url or '/browser connect')"
+    if toolset == "kanban":
+        return "(available only inside kanban worker sessions)"
+    if toolset == "messaging":
+        return "(requires a running gateway or messaging session)"
+    if toolset == "hermes-yuanbao":
+        return "(available only in Yuanbao sessions or with an active Yuanbao adapter)"
+    if toolset == "spotify":
+        return "(requires Spotify auth)"
+
+    return "(system dependency not met)"
+
+
 def _termux_browser_setup_steps(node_installed: bool) -> list[str]:
     steps: list[str] = []
     step = 1
@@ -1249,12 +1271,7 @@ def run_doctor(args):
             check_ok(info.get("name", tid))
         
         for item in unavailable:
-            env_vars = item.get("missing_vars") or item.get("env_vars") or []
-            if env_vars:
-                vars_str = ", ".join(env_vars)
-                check_warn(item["name"], f"(missing {vars_str})")
-            else:
-                check_warn(item["name"], "(system dependency not met)")
+            check_warn(item["name"], _tool_unavailable_detail(item))
 
         # Count disabled tools with API key requirements
         api_disabled = [u for u in unavailable if (u.get("missing_vars") or u.get("env_vars"))]
