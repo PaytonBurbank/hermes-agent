@@ -240,6 +240,42 @@ const isPasteResultPromise = (
   value: PasteResult | Promise<PasteResult> | null | undefined
 ): value is Promise<PasteResult> => !!value && typeof (value as PromiseLike<PasteResult>).then === 'function'
 
+export function shouldTreatPasteHotkeyAsClipboardPaste({
+  actionPasteHotkey,
+  env = process.env,
+  eventRaw,
+  hasPasteHandler
+}: {
+  actionPasteHotkey: boolean
+  env?: NodeJS.ProcessEnv
+  eventRaw: string | undefined
+  hasPasteHandler: boolean
+}): boolean {
+  if (eventRaw === '\x16') {
+    return true
+  }
+
+  if (shouldHandleClipboardHotkeys(env)) {
+    return true
+  }
+
+  if (!hasPasteHandler && isMac) {
+    return true
+  }
+
+  // Over SSH, local terminal apps like Cmux often forward Cmd+V as a
+  // Meta/Super-flavored "v" chord instead of bracketed-paste text. The
+  // composer's onPaste handler already knows how to read remote clipboard
+  // content via OSC 52 fallback, so don't drop that chord at the TextInput
+  // gate just because the terminal isn't one of the explicitly configured
+  // IDE terminals.
+  if (actionPasteHotkey && hasPasteHandler && isRemoteShellSession(env)) {
+    return true
+  }
+
+  return false
+}
+
 export function TextInput({
   columns = 80,
   value,
@@ -718,7 +754,11 @@ export function TextInput({
       const eventRaw = event.keypress.raw
       const actionPasteHotkey =
         eventRaw === '\x1bv' || eventRaw === '\x1bV' || (isMac && isActionMod(k) && inp.toLowerCase() === 'v')
-      const shouldBridgePasteHotkey = eventRaw === '\x16' || (!cbPaste.current && isMac) || shouldHandleClipboardHotkeys(process.env)
+      const shouldBridgePasteHotkey = shouldTreatPasteHotkeyAsClipboardPaste({
+        actionPasteHotkey,
+        eventRaw,
+        hasPasteHandler: !!cbPaste.current
+      })
       const remoteCopyHotkey = isRemoteShellSession(process.env) && (k.meta || k.super === true) && inp.toLowerCase() === 'c'
 
       if (actionPasteHotkey && !shouldBridgePasteHotkey) {
