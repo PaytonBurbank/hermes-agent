@@ -95,6 +95,37 @@ export function detectVSCodeLikeTerminal(env: NodeJS.ProcessEnv = process.env): 
   return null
 }
 
+function parseBooleanEnv(value: string | undefined): boolean | null {
+  if (!value) {
+    return null
+  }
+
+  switch (value.trim().toLowerCase()) {
+    case '1':
+    case 'true':
+    case 'yes':
+    case 'on':
+      return true
+    case '0':
+    case 'false':
+    case 'no':
+    case 'off':
+      return false
+    default:
+      return null
+  }
+}
+
+export function shouldHandleClipboardHotkeys(env: NodeJS.ProcessEnv = process.env): boolean {
+  const forced = parseBooleanEnv(env['HERMES_TUI_FORCE_CLIPBOARD_HOTKEYS'])
+
+  if (forced !== null) {
+    return forced
+  }
+
+  return detectVSCodeLikeTerminal(env) !== null
+}
+
 /**
  * Strip JSONC features (// line comments, /* block comments *\/, trailing commas)
  * so the result is valid JSON parseable by JSON.parse().

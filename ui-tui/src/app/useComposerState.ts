@@ -16,7 +16,7 @@ import { useQueue } from '../hooks/useQueue.js'
 import { isUsableClipboardText, readClipboardText } from '../lib/clipboard.js'
 import { resolveEditor } from '../lib/editor.js'
 import { readOsc52Clipboard } from '../lib/osc52.js'
-import { isRemoteShellSession } from '../lib/terminalSetup.js'
+import { isRemoteShellSession, shouldHandleClipboardHotkeys } from '../lib/terminalSetup.js'
 import { pasteTokenLabel, stripTrailingPasteNewlines } from '../lib/text.js'
 
 import type { MaybePromise, PasteSnippet, UseComposerStateOptions, UseComposerStateResult } from './interfaces.js'
@@ -230,7 +230,7 @@ export function useComposerState({
       value
     }: PasteEvent): MaybePromise<null | { cursor: number; value: string }> => {
       if (hotkey) {
-        const preferOsc52 = isRemoteShellSession(process.env)
+        const preferOsc52 = isRemoteShellSession(process.env) && shouldHandleClipboardHotkeys(process.env)
 
         const readPreferredText = preferOsc52
           ? readOsc52Clipboard(querier).then(async osc52Text => {

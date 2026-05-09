@@ -5,6 +5,7 @@ import {
   configureTerminalKeybindings,
   detectVSCodeLikeTerminal,
   getVSCodeStyleConfigDir,
+  shouldHandleClipboardHotkeys,
   shouldPromptForTerminalSetup,
   stripJsonComments
 } from '../lib/terminalSetup.js'
@@ -15,6 +16,21 @@ describe('terminalSetup helpers', () => {
     expect(detectVSCodeLikeTerminal({ VSCODE_GIT_ASKPASS_MAIN: '/tmp/windsurf' } as NodeJS.ProcessEnv)).toBe('windsurf')
     expect(detectVSCodeLikeTerminal({ TERM_PROGRAM: 'vscode' } as NodeJS.ProcessEnv)).toBe('vscode')
     expect(detectVSCodeLikeTerminal({} as NodeJS.ProcessEnv)).toBeNull()
+  })
+
+  it('only bridges clipboard hotkeys automatically for terminals with explicit setup', () => {
+    expect(shouldHandleClipboardHotkeys({ TERM_PROGRAM: 'vscode' } as NodeJS.ProcessEnv)).toBe(true)
+    expect(shouldHandleClipboardHotkeys({ CURSOR_TRACE_ID: 'x' } as NodeJS.ProcessEnv)).toBe(true)
+    expect(shouldHandleClipboardHotkeys({ SSH_CONNECTION: '1 2 3 4', TMUX: '/tmp/tmux-1/default,1,0' } as NodeJS.ProcessEnv)).toBe(false)
+  })
+
+  it('lets HERMES_TUI_FORCE_CLIPBOARD_HOTKEYS override terminal detection', () => {
+    expect(
+      shouldHandleClipboardHotkeys({ HERMES_TUI_FORCE_CLIPBOARD_HOTKEYS: 'true' } as NodeJS.ProcessEnv)
+    ).toBe(true)
+    expect(
+      shouldHandleClipboardHotkeys({ TERM_PROGRAM: 'vscode', HERMES_TUI_FORCE_CLIPBOARD_HOTKEYS: 'off' } as NodeJS.ProcessEnv)
+    ).toBe(false)
   })
 
   it('computes VS Code style config dirs cross-platform', () => {

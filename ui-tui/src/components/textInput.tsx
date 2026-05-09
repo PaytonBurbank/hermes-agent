@@ -3,11 +3,13 @@ import * as Ink from '@hermes/ink'
 import { type MutableRefObject, useEffect, useMemo, useRef, useState } from 'react'
 
 import { setInputSelection } from '../app/inputSelectionStore.js'
-import { readClipboardText, writeClipboardText } from '../lib/clipboard.js'
+import { readClipboardText } from '../lib/clipboard.js'
 import { cursorLayout, offsetFromPosition } from '../lib/inputMetrics.js'
 import { isActionMod, isMac, isMacActionFallback } from '../lib/platform.js'
+import { isRemoteShellSession, shouldHandleClipboardHotkeys } from '../lib/terminalSetup.js'
 
 type InkExt = typeof Ink & {
+  setClipboard: (text: string) => Promise<{ sequence: string; success: boolean }>
   stringWidth: (s: string) => number
   useDeclaredCursor: (a: { line: number; column: number; active: boolean }) => (el: any) => void
   useStdout: () => { stdout?: NodeJS.WriteStream }
@@ -15,7 +17,7 @@ type InkExt = typeof Ink & {
 }
 
 const ink = Ink as unknown as InkExt
-const { Box, Text, useStdin, useInput, useStdout, stringWidth, useDeclaredCursor, useTerminalFocus } = ink
+const { Box, Text, setClipboard, useStdin, useInput, useStdout, stringWidth, useDeclaredCursor, useTerminalFocus } = ink
 
 const ESC = '\x1b'
 const INV = `${ESC}[7m`
@@ -309,6 +311,14 @@ export function TextInput({
   }, [hideHardwareCursor, stdout])
 
   const nativeCursor = focus && termFocus && !selected && !!stdout?.isTTY
+
+  const copySelectionText = (text: string) => {
+    void setClipboard(text).then(({ sequence }) => {
+      if (sequence) {
+        stdout?.write(sequence)
+      }
+    })
+  }
 
   // Placeholder text is just a hint, not a selection — render it dim
   // without inverse styling. In a TTY the hardware cursor parks at column
@@ -671,8 +681,8 @@ export function TextInput({
 
     const normalized = selRange()
 
-    if (isMac && normalized) {
-      void writeClipboardText(vRef.current.slice(normalized.start, normalized.end))
+    if (normalized && (isMac || isRemoteShellSession(process.env))) {
+      copySelectionText(vRef.current.slice(normalized.start, normalized.end))
     }
   }
 
@@ -698,13 +708,16 @@ export function TextInput({
   useInput(
     (inp: string, k: Key, event: InputEvent) => {
       const eventRaw = event.keypress.raw
+      const actionPasteHotkey =
+        eventRaw === '\x1bv' || eventRaw === '\x1bV' || (isMac && isActionMod(k) && inp.toLowerCase() === 'v')
+      const shouldBridgePasteHotkey = eventRaw === '\x16' || (!cbPaste.current && isMac) || shouldHandleClipboardHotkeys(process.env)
+      const remoteCopyHotkey = isRemoteShellSession(process.env) && (k.meta || k.super === true) && inp.toLowerCase() === 'c'
 
-      if (
-        eventRaw === '\x1bv' ||
-        eventRaw === '\x1bV' ||
-        eventRaw === '\x16' ||
-        (isMac && isActionMod(k) && inp.toLowerCase() === 'v')
-      ) {
+      if (actionPasteHotkey && !shouldBridgePasteHotkey) {
+        return
+      }
+
+      if ((actionPasteHotkey && shouldBridgePasteHotkey) || eventRaw === '\x16') {
         if (cbPaste.current) {
           return void emitPaste({ cursor: curRef.current, hotkey: true, text: '', value: vRef.current })
         }
@@ -720,13 +733,13 @@ export function TextInput({
         return
       }
 
-      if (isMac && isActionMod(k) && inp.toLowerCase() === 'c') {
+      if ((isMac && isActionMod(k) && inp.toLowerCase() === 'c') || remoteCopyHotkey) {
         const range = selRange()
 
         if (range) {
           const text = vRef.current.slice(range.start, range.end)
 
-          void writeClipboardText(text)
+          copySelectionText(text)
         }
 
         return
