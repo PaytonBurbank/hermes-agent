@@ -644,6 +644,14 @@ export function useMessageStream({
       })
 
       void refreshSessions().catch(() => undefined)
+      // Auto-titles are generated asynchronously after the first response lands.
+      // The immediate refresh keeps recents/live counts fresh; a short second
+      // refresh picks up the newly-written title without waiting for another user
+      // action, so sidebar rows tighten up almost immediately.
+      window.setTimeout(() => {
+        void refreshSessions().catch(() => undefined)
+        broadcastSessionsChanged()
+      }, 900)
       // Sync the freshly-titled row to other windows (e.g. main, when the turn
       // ran in the pop-out).
       broadcastSessionsChanged()

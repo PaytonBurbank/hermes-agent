@@ -20,15 +20,17 @@ FailureCallback = Callable[[str, BaseException], None]
 TitleCallback = Callable[[str], None]
 
 _TITLE_PROMPT = (
-    "Generate a short, descriptive title (3-7 words) for a conversation that starts with the "
-    "following exchange. The title should capture the main topic or intent. "
+    "Generate an extremely short, concrete session title (2-5 words) for a conversation that starts with the "
+    "following exchange. The title should say exactly what the chat is about, not generic filler like Help, Question, "
+    "Troubleshooting, Setup, or Review unless that is the actual subject. Prefer specific nouns over vague verbs. "
     "Write the title in the same language the user is writing in. "
     "Return ONLY the title text, nothing else. No quotes, no punctuation at the end, no prefixes."
 )
 
 _TITLE_PROMPT_PINNED_LANGUAGE = (
-    "Generate a short, descriptive title (3-7 words) for a conversation that starts with the "
-    "following exchange. The title should capture the main topic or intent. "
+    "Generate an extremely short, concrete session title (2-5 words) for a conversation that starts with the "
+    "following exchange. The title should say exactly what the chat is about, not generic filler like Help, Question, "
+    "Troubleshooting, Setup, or Review unless that is the actual subject. Prefer specific nouns over vague verbs. "
     "Write the title in {language}. "
     "Return ONLY the title text, nothing else. No quotes, no punctuation at the end, no prefixes."
 )

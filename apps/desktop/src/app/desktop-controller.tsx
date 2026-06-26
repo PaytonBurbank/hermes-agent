@@ -16,6 +16,7 @@ import { formatRefValue } from '../components/assistant-ui/directive-text'
 import { getCronJobs, getSessionMessages, listAllProfileSessions, type SessionInfo, triggerCronJob } from '../hermes'
 import { type ChatMessage, chatMessageText, preserveLocalAssistantErrors, toChatMessages } from '../lib/chat-messages'
 import { storedSessionIdForNotification } from '../lib/session-ids'
+import { decorateSessionsWithSmartWorkspaces } from '../lib/session-workspaces'
 import {
   isMessagingSource,
   LOCAL_SESSION_SOURCE_IDS,
@@ -461,7 +462,8 @@ export function DesktopController() {
       })
 
       if (refreshSessionsRequestRef.current === requestId) {
-        setSessions(prev => mergeSessionPage(prev, result.sessions, sessionsToKeep()))
+        const smartSessions = decorateSessionsWithSmartWorkspaces(result.sessions)
+        setSessions(prev => mergeSessionPage(prev, smartSessions, sessionsToKeep()))
         setSessionsTotal(typeof result.total === 'number' ? result.total : result.sessions.length)
         setSessionProfileTotals(result.profile_totals ?? {})
       }
@@ -502,12 +504,13 @@ export function DesktopController() {
     const result = await listAllProfileSessions(loaded + SIDEBAR_SESSIONS_PAGE_SIZE, 1, 'exclude', 'recent', key, {
       excludeSources: SIDEBAR_EXCLUDED_SOURCES
     })
+    const smartSessions = decorateSessionsWithSmartWorkspaces(result.sessions)
 
     const keep = sessionsToKeep(key)
 
     setSessions(prev => [
       ...prev.filter(s => !inKey(s)),
-      ...mergeSessionPage(prev.filter(inKey), result.sessions, keep)
+      ...mergeSessionPage(prev.filter(inKey), smartSessions, keep)
     ])
 
     const total = result.profile_totals?.[key] ?? result.total ?? result.sessions.length

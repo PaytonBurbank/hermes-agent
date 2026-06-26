@@ -33,6 +33,8 @@ class TestGenerateTitle:
 
         system_prompt = llm.call_args.kwargs["messages"][0]["content"]
         assert "same language the user is writing in" in system_prompt
+        assert "2-5 words" in system_prompt
+        assert "generic filler" in system_prompt
 
     def test_configured_language_pins_prompt(self):
         mock_response = MagicMock()
